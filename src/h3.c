@@ -1764,6 +1764,23 @@ static ssize_t h3_parse_settings_frm(struct h3c *h3c, const struct buffer *buf,
 
 	TRACE_ENTER(H3_EV_RX_FRAME|H3_EV_RX_SETTINGS, h3c->qcc->conn);
 
+#ifdef USE_MUX_FINGERPRINT
+	/* Save raw SETTINGS payload for fingerprint sample fetches.
+	 * Only save the first SETTINGS frame on the frontend (client) side.
+	 * Cap at fp_settings_raw[] size to prevent overflow.
+	 */
+	if (!(h3c->qcc->flags & QC_CF_IS_BACK) && h3c->fp_settings_len == 0) {
+		size_t save_len = len;
+		int i;
+
+		if (save_len > sizeof(h3c->fp_settings_raw))
+			save_len = sizeof(h3c->fp_settings_raw);
+		for (i = 0; i < (int)save_len; i++)
+			h3c->fp_settings_raw[i] = *(char *)b_peek(buf, i);
+		h3c->fp_settings_len = save_len;
+	}
+#endif
+
 	/* Work on a copy of <buf>. */
 	b = b_make(b_orig(buf), b_size(buf), b_head_ofs(buf), len);
 
