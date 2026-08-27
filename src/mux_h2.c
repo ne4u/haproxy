@@ -2940,6 +2940,23 @@ static int h2c_handle_settings(struct h2c *h2c)
 		goto out0;
 	}
 
+#ifdef USE_MUX_FINGERPRINT
+	/* Save raw SETTINGS payload for fingerprint sample fetches.
+	 * Only save the first SETTINGS frame (not ACKs or subsequent frames).
+	 * Cap at fp_settings_raw[] size to prevent overflow.
+	 */
+	if (h2c->fp_settings_len == 0) {
+		unsigned int save_len = h2c->dfl;
+		unsigned int i;
+
+		if (save_len > sizeof(h2c->fp_settings_raw))
+			save_len = sizeof(h2c->fp_settings_raw);
+		for (i = 0; i < save_len; i++)
+			h2c->fp_settings_raw[i] = *(char *)b_peek(&h2c->dbuf, i);
+		h2c->fp_settings_len = save_len;
+	}
+#endif /* USE_MUX_FINGERPRINT */
+
 	/* parse the frame */
 	for (offset = 0; offset < h2c->dfl; offset += 6) {
 		uint16_t type = h2_get_n16(&h2c->dbuf, offset);
