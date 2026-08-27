@@ -3536,6 +3536,20 @@ static int h2c_handle_priority(struct h2c *h2c)
 		TRACE_DEVEL("leaving on error", H2_EV_RX_FRAME|H2_EV_RX_PRIO, h2c->conn);
 		return 0;
 	}
+
+#ifdef USE_MUX_FINGERPRINT
+	/* Save PRIORITY frame data for fingerprinting (up to 4 frames). */
+	if (h2c->fp_prio_count < sizeof(h2c->fp_prio) / sizeof(h2c->fp_prio[0])) {
+		uint32_t dep_and_excl = h2_get_n32(&h2c->dbuf, 0);
+
+		h2c->fp_prio[h2c->fp_prio_count].stream_id = h2c->dsi;
+		h2c->fp_prio[h2c->fp_prio_count].exclusive = (dep_and_excl >> 31) & 1;
+		h2c->fp_prio[h2c->fp_prio_count].dep_stream_id = dep_and_excl & 0x7fffffff;
+		h2c->fp_prio[h2c->fp_prio_count].weight = *(unsigned char *)b_peek(&h2c->dbuf, 4);
+		h2c->fp_prio_count++;
+	}
+#endif /* USE_MUX_FINGERPRINT */
+
 	TRACE_LEAVE(H2_EV_RX_FRAME|H2_EV_RX_PRIO, h2c->conn);
 	return 1;
 }
