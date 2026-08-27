@@ -397,6 +397,8 @@ enum mux_ctl_type {
 	MUX_CTL_GET_CONN_WU, /* Return connection-level WINDOW_UPDATE increment for fingerprinting */
 	MUX_CTL_GET_PRIORITY, /* Fill output buffer with PRIORITY frame data for fingerprinting */
 	MUX_CTL_GET_PSEUDO_ORDER, /* Fill output buffer with pseudo-header order string for fingerprinting */
+	MUX_CTL_GET_H3_SETTINGS_BIN, /* Fill output buffer with raw H3 SETTINGS payload for fingerprinting */
+	MUX_CTL_GET_H3_PSEUDO_ORDER, /* Fill output buffer with H3 pseudo-header order string for fingerprinting */
 };
 
 /* sctl command used by mux->sctl() */

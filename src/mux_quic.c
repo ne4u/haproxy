@@ -4761,6 +4761,20 @@ static int qcm_ctl(struct connection *conn, enum mux_ctl_type mux_ctl, void *out
 	case MUX_CTL_TEVTS:
 		return qcc->term_evts_log;
 
+	case MUX_CTL_GET_H3_SETTINGS_BIN:
+#ifdef USE_MUX_FINGERPRINT
+		return h3_fp_get_settings_bin(qcc, output);
+#else
+		return 0;
+#endif
+
+	case MUX_CTL_GET_H3_PSEUDO_ORDER:
+#ifdef USE_MUX_FINGERPRINT
+		return h3_fp_get_pseudo_order(qcc, output);
+#else
+		return 0;
+#endif
+
 	default:
 		return -1;
 	}

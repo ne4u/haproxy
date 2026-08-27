@@ -838,6 +838,8 @@ static int mux_pt_ctl(struct connection *conn, enum mux_ctl_type mux_ctl, void *
 	case MUX_CTL_GET_PRIORITY:
 	case MUX_CTL_GET_PSEUDO_ORDER:
 	case MUX_CTL_GET_CONN_WU:
+	case MUX_CTL_GET_H3_SETTINGS_BIN:
+	case MUX_CTL_GET_H3_PSEUDO_ORDER:
 		return 0;
 	default:
 		return -1;
