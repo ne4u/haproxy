@@ -24569,6 +24569,8 @@ fc_h2_settings_bin (USE_MUX_FINGERPRINT)           binary
 fc_h2_window_update (USE_MUX_FINGERPRINT)          integer
 fc_h2_priority (USE_MUX_FINGERPRINT)               string
 fc_h2_pseudo_order (USE_MUX_FINGERPRINT)           string
+fc_h3_settings_bin (USE_MUX_FINGERPRINT)           binary
+fc_h3_pseudo_order (USE_MUX_FINGERPRINT)           string
 fc_src                                             ip
 fc_src_is_local                                    boolean
 fc_src_port                                        integer
@@ -25335,6 +25337,19 @@ fc_h2_pseudo_order : string (USE_MUX_FINGERPRINT)
   Returns the pseudo-header order from the client's first H2 HEADERS frame
   as comma-separated single-character codes (m=method, a=authority, s=scheme,
   p=path), e.g. "m,a,s,p". Returns empty for non-H2 connections. Note: this
+  fetch is only available when HAProxy is compiled with USE_MUX_FINGERPRINT=1.
+
+fc_h3_settings_bin : binary (USE_MUX_FINGERPRINT)
+  Returns the raw payload of the client's first H3 SETTINGS frame as binary
+  data. Each entry is a pair of QUIC variable-length integers (varint): a
+  setting ID followed by a setting value. Returns empty for non-H3
+  connections. This is useful for HTTP/3 fingerprinting. Note: this fetch
+  is only available when HAProxy is compiled with USE_MUX_FINGERPRINT=1.
+
+fc_h3_pseudo_order : string (USE_MUX_FINGERPRINT)
+  Returns the pseudo-header order from the client's first H3 HEADERS frame
+  as comma-separated single-character codes (m=method, a=authority, s=scheme,
+  p=path), e.g. "m,a,s,p". Returns empty for non-H3 connections. Note: this
   fetch is only available when HAProxy is compiled with USE_MUX_FINGERPRINT=1.
 
 fc_src : ip
