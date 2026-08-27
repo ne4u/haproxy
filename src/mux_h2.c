@@ -5726,6 +5726,62 @@ static int h2_ctl(struct connection *conn, enum mux_ctl_type mux_ctl, void *outp
 	case MUX_CTL_TEVTS:
 		return h2c->term_evts_log;
 
+	case MUX_CTL_GET_SETTINGS_BIN:
+#ifdef USE_MUX_FINGERPRINT
+		{
+			struct buffer *out = output;
+
+			if (out && h2c->fp_settings_len > 0)
+				b_putblk(out, h2c->fp_settings_raw, h2c->fp_settings_len);
+			return h2c->fp_settings_len;
+		}
+#else
+		return 0;
+#endif
+
+	case MUX_CTL_GET_CONN_WU:
+#ifdef USE_MUX_FINGERPRINT
+		return h2c->fp_conn_wu;
+#else
+		return 0;
+#endif
+
+	case MUX_CTL_GET_PRIORITY:
+#ifdef USE_MUX_FINGERPRINT
+		{
+			struct buffer *out = output;
+			int i;
+
+			if (!out || h2c->fp_prio_count == 0)
+				return 0;
+			for (i = 0; i < h2c->fp_prio_count; i++) {
+				chunk_appendf(out, "%s%u:%u:%u:%u",
+				              i > 0 ? "," : "",
+				              h2c->fp_prio[i].stream_id,
+				              h2c->fp_prio[i].exclusive,
+				              h2c->fp_prio[i].dep_stream_id,
+				              h2c->fp_prio[i].weight);
+			}
+			return h2c->fp_prio_count;
+		}
+#else
+		return 0;
+#endif
+
+	case MUX_CTL_GET_PSEUDO_ORDER:
+#ifdef USE_MUX_FINGERPRINT
+		{
+			struct buffer *out = output;
+			int len = strlen(h2c->fp_pseudo_order);
+
+			if (out && len > 0)
+				b_putblk(out, h2c->fp_pseudo_order, len);
+			return len;
+		}
+#else
+		return 0;
+#endif
+
 	default:
 		return -1;
 	}
