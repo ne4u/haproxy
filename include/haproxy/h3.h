@@ -110,5 +110,11 @@ enum h3s_st_req {
 
 extern const struct qcc_app_ops h3_ops;
 
+#ifdef USE_MUX_FINGERPRINT
+/* H3 fingerprint helper functions — called by the QUIC mux via MUX_CTL commands. */
+int h3_fp_get_settings_bin(struct qcc *qcc, struct buffer *out);
+int h3_fp_get_pseudo_order(struct qcc *qcc, struct buffer *out);
+#endif
+
 #endif /* USE_QUIC */
 #endif /* _HAPROXY_H3_T_H */

@@ -3808,6 +3808,46 @@ int h3_reject(struct list *out, uint64_t id)
 	return ret;
 }
 
+#ifdef USE_MUX_FINGERPRINT
+/* H3 fingerprint helper functions — called by the QUIC mux via MUX_CTL commands
+ * to retrieve stored fingerprint data for sample fetches.
+ */
+
+/* Fill <out> buffer with raw H3 SETTINGS payload (varint-encoded id/value pairs).
+ * Returns the number of bytes written, or 0 if no data is available.
+ */
+int h3_fp_get_settings_bin(struct qcc *qcc, struct buffer *out)
+{
+	struct h3c *h3c;
+
+	if (!qcc || !qcc->ctx || qcc->app_ops != &h3_ops)
+		return 0;
+
+	h3c = qcc->ctx;
+	if (out && h3c->fp_settings_len > 0)
+		b_putblk(out, h3c->fp_settings_raw, h3c->fp_settings_len);
+	return h3c->fp_settings_len;
+}
+
+/* Fill <out> buffer with H3 pseudo-header order string (e.g. "m,a,s,p").
+ * Returns the string length, or 0 if no data is available.
+ */
+int h3_fp_get_pseudo_order(struct qcc *qcc, struct buffer *out)
+{
+	struct h3c *h3c;
+	int len;
+
+	if (!qcc || !qcc->ctx || qcc->app_ops != &h3_ops)
+		return 0;
+
+	h3c = qcc->ctx;
+	len = strlen(h3c->fp_pseudo_order);
+	if (out && len > 0)
+		b_putblk(out, h3c->fp_pseudo_order, len);
+	return len;
+}
+#endif /* USE_MUX_FINGERPRINT */
+
 /* HTTP/3 application layer operations */
 const struct qcc_app_ops h3_ops = {
 	.alpn        = "h3",
