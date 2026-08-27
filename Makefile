@@ -68,6 +68,10 @@
 #   USE_FCGI                : enable the FCGI subsystem. Always on.
 #   USE_H2                  : enable HTTP/2 subsystem. Always on.
 #   USE_SPOE                : enable the SPOE subsystem. Always on.
+#   USE_MUX_FINGERPRINT     : enable mux-layer frame capture for H2/H3 fingerprinting.
+#                            Adds ~80 bytes per H2 connection. Off by default.
+#                            Enables fc_h2_settings_bin, fc_h2_window_update,
+#                            fc_h2_priority, fc_h2_pseudo_order sample fetches.
 #
 # Options can be forced by specifying "USE_xxx=1" or can be disabled by using
 # "USE_xxx=" (empty string). The list of enabled and disabled options for a
@@ -350,7 +354,7 @@ use_opts = USE_EPOLL USE_KQUEUE USE_NETFILTER USE_POLL                        \
            USE_MEMORY_PROFILING USE_SHM_OPEN                                  \
            USE_STATIC_PCRE USE_STATIC_PCRE2                                   \
            USE_PCRE USE_PCRE_JIT USE_PCRE2 USE_PCRE2_JIT                      \
-           USE_QUIC_OPENSSL_COMPAT USE_KTLS
+           USE_QUIC_OPENSSL_COMPAT USE_KTLS USE_MUX_FINGERPRINT
 
 # preset all variables for all supported build options among use_opts
 $(reset_opts_vars)
