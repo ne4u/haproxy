@@ -24513,6 +24513,10 @@ bc_reused                                          boolean
 bc_rtt(<unit>)                                     integer
 bc_rttvar(<unit>)                                  integer
 bc_settings_streams_limit                          integer
+bc_h2_settings_bin (USE_MUX_FINGERPRINT)           binary
+bc_h2_window_update (USE_MUX_FINGERPRINT)          integer
+bc_h2_priority (USE_MUX_FINGERPRINT)               string
+bc_h2_pseudo_order (USE_MUX_FINGERPRINT)           string
 bc_src                                             ip
 bc_src_port                                        integer
 bc_srv_queue                                       integer
@@ -24561,6 +24565,10 @@ fc_rttvar(<unit>)                                  integer
 fc_sacked                                          integer
 fc_saved_syn                                       binary
 fc_settings_streams_limit                          integer
+fc_h2_settings_bin (USE_MUX_FINGERPRINT)           binary
+fc_h2_window_update (USE_MUX_FINGERPRINT)          integer
+fc_h2_priority (USE_MUX_FINGERPRINT)               string
+fc_h2_pseudo_order (USE_MUX_FINGERPRINT)           string
 fc_src                                             ip
 fc_src_is_local                                    boolean
 fc_src_port                                        integer
@@ -24839,6 +24847,31 @@ bc_settings_streams_limit : integer
   Returns the maximum number of streams allowed on the backend connection. For
   TCP and HTTP/1.1 connections, it is always 1. For other protocols, it depends
   on the settings negotiated with the server.
+
+bc_h2_settings_bin : binary (USE_MUX_FINGERPRINT)
+  Returns the raw payload of the server's first H2 SETTINGS frame as binary
+  data. Each 6-byte entry is a 2-byte big-endian setting ID followed by a
+  4-byte big-endian setting value. Returns empty for non-H2 connections.
+  This is useful for HTTP/2 fingerprinting. Note: this fetch is only available
+  when HAProxy is compiled with USE_MUX_FINGERPRINT=1.
+
+bc_h2_window_update : integer (USE_MUX_FINGERPRINT)
+  Returns the increment value from the first connection-level (stream 0)
+  WINDOW_UPDATE frame sent by the server, or 0 if none was sent. Returns 0
+  for non-H2 connections. Note: this fetch is only available when HAProxy is
+  compiled with USE_MUX_FINGERPRINT=1.
+
+bc_h2_priority : string (USE_MUX_FINGERPRINT)
+  Returns the PRIORITY frame data as a comma-separated list of
+  "stream_id:exclusive:dep_stream_id:weight" tuples, or empty string if no
+  PRIORITY frames were sent. Returns empty for non-H2 connections. Note: this
+  fetch is only available when HAProxy is compiled with USE_MUX_FINGERPRINT=1.
+
+bc_h2_pseudo_order : string (USE_MUX_FINGERPRINT)
+  Returns the pseudo-header order from the server's first H2 HEADERS frame
+  as comma-separated single-character codes (m=method, a=authority, s=scheme,
+  p=path), e.g. "m,a,s,p". Returns empty for non-H2 connections. Note: this
+  fetch is only available when HAProxy is compiled with USE_MUX_FINGERPRINT=1.
 
 bc_src : ip
   This is the source ip address of the connection on the server side, which is
@@ -25278,6 +25311,31 @@ fc_settings_streams_limit : integer
   Returns the maximum number of streams allowed on the frontend connection. For
   TCP and HTTP/1.1 connections, it is always 1. For other protocols, it depends
   on the settings negotiated with the client.
+
+fc_h2_settings_bin : binary (USE_MUX_FINGERPRINT)
+  Returns the raw payload of the client's first H2 SETTINGS frame as binary
+  data. Each 6-byte entry is a 2-byte big-endian setting ID followed by a
+  4-byte big-endian setting value. Returns empty for non-H2 connections.
+  This is useful for HTTP/2 fingerprinting. Note: this fetch is only available
+  when HAProxy is compiled with USE_MUX_FINGERPRINT=1.
+
+fc_h2_window_update : integer (USE_MUX_FINGERPRINT)
+  Returns the increment value from the first connection-level (stream 0)
+  WINDOW_UPDATE frame sent by the client, or 0 if none was sent. Returns 0
+  for non-H2 connections. Note: this fetch is only available when HAProxy is
+  compiled with USE_MUX_FINGERPRINT=1.
+
+fc_h2_priority : string (USE_MUX_FINGERPRINT)
+  Returns the PRIORITY frame data as a comma-separated list of
+  "stream_id:exclusive:dep_stream_id:weight" tuples, or empty string if no
+  PRIORITY frames were sent. Returns empty for non-H2 connections. Note: this
+  fetch is only available when HAProxy is compiled with USE_MUX_FINGERPRINT=1.
+
+fc_h2_pseudo_order : string (USE_MUX_FINGERPRINT)
+  Returns the pseudo-header order from the client's first H2 HEADERS frame
+  as comma-separated single-character codes (m=method, a=authority, s=scheme,
+  p=path), e.g. "m,a,s,p". Returns empty for non-H2 connections. Note: this
+  fetch is only available when HAProxy is compiled with USE_MUX_FINGERPRINT=1.
 
 fc_src : ip
   This is the original source IP address of the connection on the client side
