@@ -2892,6 +2892,141 @@ int smp_fetch_fc_streams_limit(const struct arg *args, struct sample *smp, const
 	return 1;
 }
 
+#ifdef USE_MUX_FINGERPRINT
+/* Fetch raw H2 SETTINGS payload as binary for protocol fingerprinting.
+ * Returns the raw 6-byte entries (2-byte ID + 4-byte value) from the
+ * client's first SETTINGS frame, in wire order.
+ */
+static int
+smp_fetch_fc_h2_settings_bin(const struct arg *args, struct sample *smp, const char *kw, void *private)
+{
+	struct connection *conn;
+	struct buffer *tmp;
+	int len;
+
+	conn = (kw[0] != 'b') ? objt_conn(smp->sess->origin) : smp->strm ? sc_conn(smp->strm->scb) : NULL;
+	if (!conn)
+		return 0;
+
+	if (!conn->mux || !conn->mux->ctl) {
+		if (!conn->mux)
+			smp->flags |= SMP_F_MAY_CHANGE;
+		return 0;
+	}
+
+	tmp = get_trash_chunk();
+	chunk_reset(tmp);
+	len = conn->mux->ctl(conn, MUX_CTL_GET_SETTINGS_BIN, tmp);
+	if (len <= 0)
+		return 0;
+
+	smp->data.type = SMP_T_BIN;
+	smp->data.u.str.area = b_head(tmp);
+	smp->data.u.str.data = len;
+	smp->flags = SMP_F_VOL_TEST;
+	return 1;
+}
+
+/* Fetch H2 connection-level WINDOW_UPDATE increment for fingerprinting.
+ * Returns the increment from the first connection-level (stream 0)
+ * WINDOW_UPDATE frame, or 0 if none was sent.
+ */
+static int
+smp_fetch_fc_h2_window_update(const struct arg *args, struct sample *smp, const char *kw, void *private)
+{
+	struct connection *conn;
+	int wu;
+
+	conn = (kw[0] != 'b') ? objt_conn(smp->sess->origin) : smp->strm ? sc_conn(smp->strm->scb) : NULL;
+	if (!conn)
+		return 0;
+
+	if (!conn->mux || !conn->mux->ctl) {
+		if (!conn->mux)
+			smp->flags |= SMP_F_MAY_CHANGE;
+		return 0;
+	}
+
+	wu = conn->mux->ctl(conn, MUX_CTL_GET_CONN_WU, NULL);
+
+	smp->data.type = SMP_T_SINT;
+	smp->data.u.sint = wu;
+	smp->flags = SMP_F_VOL_TEST;
+	return 1;
+}
+
+/* Fetch H2 PRIORITY frames as a formatted string for fingerprinting.
+ * Returns "sid:exclusive:dep:weight" tuples comma-separated, or empty
+ * string if no PRIORITY frames were sent.
+ */
+static int
+smp_fetch_fc_h2_priority(const struct arg *args, struct sample *smp, const char *kw, void *private)
+{
+	struct connection *conn;
+	struct buffer *tmp;
+	int count;
+
+	conn = (kw[0] != 'b') ? objt_conn(smp->sess->origin) : smp->strm ? sc_conn(smp->strm->scb) : NULL;
+	if (!conn)
+		return 0;
+
+	if (!conn->mux || !conn->mux->ctl) {
+		if (!conn->mux)
+			smp->flags |= SMP_F_MAY_CHANGE;
+		return 0;
+	}
+
+	tmp = get_trash_chunk();
+	chunk_reset(tmp);
+	count = conn->mux->ctl(conn, MUX_CTL_GET_PRIORITY, tmp);
+	if (count <= 0) {
+		smp->data.type = SMP_T_STR;
+		smp->data.u.str.area = "";
+		smp->data.u.str.data = 0;
+	} else {
+		smp->data.type = SMP_T_STR;
+		smp->data.u.str.area = b_head(tmp);
+		smp->data.u.str.data = b_data(tmp);
+	}
+	smp->flags = SMP_F_VOL_TEST;
+	return 1;
+}
+
+/* Fetch H2 pseudo-header order as a string for fingerprinting.
+ * Returns comma-separated single-character codes (m=method, a=authority,
+ * s=scheme, p=path), e.g. "m,a,s,p".
+ */
+static int
+smp_fetch_fc_h2_pseudo_order(const struct arg *args, struct sample *smp, const char *kw, void *private)
+{
+	struct connection *conn;
+	struct buffer *tmp;
+	int len;
+
+	conn = (kw[0] != 'b') ? objt_conn(smp->sess->origin) : smp->strm ? sc_conn(smp->strm->scb) : NULL;
+	if (!conn)
+		return 0;
+
+	if (!conn->mux || !conn->mux->ctl) {
+		if (!conn->mux)
+			smp->flags |= SMP_F_MAY_CHANGE;
+		return 0;
+	}
+
+	tmp = get_trash_chunk();
+	chunk_reset(tmp);
+	len = conn->mux->ctl(conn, MUX_CTL_GET_PSEUDO_ORDER, tmp);
+	if (len <= 0)
+		return 0;
+
+	smp->data.type = SMP_T_STR;
+	smp->data.u.str.area = b_head(tmp);
+	smp->data.u.str.data = len;
+	smp->flags = SMP_F_VOL_TEST;
+	return 1;
+}
+#endif /* USE_MUX_FINGERPRINT */
+
 /* Note: must not be declared <const> as its list will be overwritten.
  * Note: fetches that may return multiple types should be declared using the
  * appropriate pseudo-type. If not available it must be declared as the lowest
@@ -2905,6 +3040,12 @@ static struct sample_fetch_kw_list sample_fetch_keywords = {ILH, {
 	{ "bc_http_major", smp_fetch_fc_http_major, 0, NULL, SMP_T_SINT, SMP_USE_L4SRV },
 	{ "bc_nb_streams", smp_fetch_fc_nb_streams, 0, NULL, SMP_T_SINT, SMP_USE_L5SRV },
 	{ "bc_settings_streams_limit", smp_fetch_fc_streams_limit, 0, NULL, SMP_T_SINT, SMP_USE_L5SRV },
+#ifdef USE_MUX_FINGERPRINT
+	{ "bc_h2_settings_bin", smp_fetch_fc_h2_settings_bin, 0, NULL, SMP_T_BIN, SMP_USE_L5SRV },
+	{ "bc_h2_window_update", smp_fetch_fc_h2_window_update, 0, NULL, SMP_T_SINT, SMP_USE_L5SRV },
+	{ "bc_h2_priority", smp_fetch_fc_h2_priority, 0, NULL, SMP_T_STR, SMP_USE_L5SRV },
+	{ "bc_h2_pseudo_order", smp_fetch_fc_h2_pseudo_order, 0, NULL, SMP_T_STR, SMP_USE_L5SRV },
+#endif
 	{ "fc_err", smp_fetch_fc_err, 0, NULL, SMP_T_SINT, SMP_USE_L4CLI },
 	{ "fc_err_name", smp_fetch_fc_err_str, 0, NULL, SMP_T_STR, SMP_USE_L4CLI },
 	{ "fc_err_str", smp_fetch_fc_err_str, 0, NULL, SMP_T_STR, SMP_USE_L4CLI },
@@ -2916,6 +3057,12 @@ static struct sample_fetch_kw_list sample_fetch_keywords = {ILH, {
 	{ "fc_pp_unique_id", smp_fetch_fc_pp_unique_id, 0, NULL, SMP_T_STR, SMP_USE_L4CLI },
 	{ "fc_pp_tlv", smp_fetch_fc_pp_tlv, ARG1(1, STR), smp_check_tlv_type, SMP_T_STR, SMP_USE_L5CLI },
 	{ "fc_settings_streams_limit", smp_fetch_fc_streams_limit, 0, NULL, SMP_T_SINT, SMP_USE_L5CLI },
+#ifdef USE_MUX_FINGERPRINT
+	{ "fc_h2_settings_bin", smp_fetch_fc_h2_settings_bin, 0, NULL, SMP_T_BIN, SMP_USE_L5CLI },
+	{ "fc_h2_window_update", smp_fetch_fc_h2_window_update, 0, NULL, SMP_T_SINT, SMP_USE_L5CLI },
+	{ "fc_h2_priority", smp_fetch_fc_h2_priority, 0, NULL, SMP_T_STR, SMP_USE_L5CLI },
+	{ "fc_h2_pseudo_order", smp_fetch_fc_h2_pseudo_order, 0, NULL, SMP_T_STR, SMP_USE_L5CLI },
+#endif
 	{ /* END */ },
 }};
 
