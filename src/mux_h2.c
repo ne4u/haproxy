@@ -3395,6 +3395,15 @@ static int h2c_handle_window_update(struct h2c *h2c, struct h2s *h2s)
 
 	inc = h2_get_n32(&h2c->dbuf, 0) & 0x7FFFFFFF;
 
+#ifdef USE_MUX_FINGERPRINT
+	/* Save first connection-level WINDOW_UPDATE for fingerprinting.
+	 * Only stream 0 (connection-level) increments are relevant.
+	 * Only save the first one (matching H2 fingerprint semantics).
+	 */
+	if (h2c->dsi == 0 && h2c->fp_conn_wu == 0)
+		h2c->fp_conn_wu = inc;
+#endif /* USE_MUX_FINGERPRINT */
+
 	if (h2c->dsi != 0) {
 		/* stream window update */
 
