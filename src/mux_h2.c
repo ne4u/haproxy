@@ -102,6 +102,25 @@ struct h2c {
 
 	struct list *next_tasklet; /* which applet to wake up next (NULL by default) */
 	uint32_t streams_hard_limit; /* maximum number of concurrent streams supported locally */
+
+#ifdef USE_MUX_FINGERPRINT
+	/* H2 fingerprint data â€” stored during initial frame parsing for sample
+	 * fetches. Only present when compiled with USE_MUX_FINGERPRINT to avoid
+	 * per-connection memory overhead for deployments that don't need
+	 * protocol fingerprinting.
+	 */
+	char    fp_settings_raw[64];   /* raw SETTINGS payload, 6 bytes per entry */
+	uint8_t fp_settings_len;       /* bytes stored in fp_settings_raw (0 or multiple of 6) */
+	uint32_t fp_conn_wu;           /* first connection-level WINDOW_UPDATE increment (0 if none) */
+	char    fp_pseudo_order[8];    /* pseudo-header order: "m,a,s,p" + NUL, or empty */
+	struct {
+		uint32_t stream_id;
+		uint32_t exclusive : 1;
+		uint32_t dep_stream_id : 31;
+		uint8_t  weight;
+	} fp_prio[4];                  /* up to 4 PRIORITY frames (most clients send 0) */
+	uint8_t fp_prio_count;         /* number of PRIORITY frames stored (0-4) */
+#endif /* USE_MUX_FINGERPRINT */
 };
 
 
@@ -6346,7 +6365,7 @@ next_frame:
 	 * to convert 200 response to 101 htx response. We only support this if
 	 * the connection supports RFC8441.
 	 * On the backend, that means the origin server advertised the setting.
-	 * On the frontend, RFC 8441 §3 only requires the server (us) to
+	 * On the frontend, RFC 8441 ï¿½3 only requires the server (us) to
 	 * advertise it; clients are not required to echo it back. Use whether
 	 * we ourselves advertised it as the gate.
 	 */
