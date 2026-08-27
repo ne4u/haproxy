@@ -923,6 +923,34 @@ static ssize_t h3_req_headers_to_htx(struct qcs *qcs, const struct buffer *buf,
 		++hdr_idx;
 	}
 
+#ifdef USE_MUX_FINGERPRINT
+	/* Save pseudo-header order for fingerprinting (first request HEADERS
+	 * frame only). H3 pseudo-headers are always literal (QPACK-decoded),
+	 * so we use isteq() checks. Pseudo-headers always appear before regular
+	 * headers in the list.
+	 */
+	if (!(h3c->qcc->flags & QC_CF_IS_BACK) && h3c->fp_pseudo_order[0] == '\0') {
+		char *p = h3c->fp_pseudo_order;
+		int i;
+
+		for (i = 0; list[i].n.len != 0 &&
+			    p < h3c->fp_pseudo_order + sizeof(h3c->fp_pseudo_order) - 2; i++) {
+			if (!isttest(list[i].n) || !(list[i].n.ptr && *(list[i].n.ptr) == ':'))
+				break; /* regular header or empty — pseudo-headers are always first */
+
+			if (isteq(list[i].n, ist(":method")))         { *p++ = 'm'; *p++ = ','; }
+			else if (isteq(list[i].n, ist(":authority"))) { *p++ = 'a'; *p++ = ','; }
+			else if (isteq(list[i].n, ist(":scheme")))    { *p++ = 's'; *p++ = ','; }
+			else if (isteq(list[i].n, ist(":path")))      { *p++ = 'p'; *p++ = ','; }
+			/* unknown pseudo-headers are not recorded */
+		}
+		/* strip trailing comma */
+		if (p > h3c->fp_pseudo_order && p[-1] == ',')
+			p--;
+		*p = '\0';
+	}
+#endif
+
 	if (!istmatch(meth, ist("CONNECT"))) {
 		/* RFC 9114 4.3.1. Request Pseudo-Header Fields
 		 *
