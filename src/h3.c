@@ -156,6 +156,17 @@ struct h3c {
 	struct buffer_wait buf_wait; /* wait list for buffer allocations */
 	/* Stats counters */
 	struct h3_counters *prx_counters;
+
+#ifdef USE_MUX_FINGERPRINT
+	/* H3 fingerprint data — stored during initial frame parsing for sample
+	 * fetches. Only present when compiled with USE_MUX_FINGERPRINT to avoid
+	 * per-connection memory overhead for deployments that don't need
+	 * protocol fingerprinting.
+	 */
+	char    fp_settings_raw[64];   /* raw H3 SETTINGS payload (varint id/value pairs) */
+	uint8_t fp_settings_len;       /* bytes stored in fp_settings_raw (0 if none) */
+	char    fp_pseudo_order[12];   /* pseudo-header order: "m,a,s,p" + NUL, or empty */
+#endif /* USE_MUX_FINGERPRINT */
 };
 
 DECLARE_STATIC_TYPED_POOL(pool_head_h3c, "h3c", struct h3c);
@@ -3516,6 +3527,10 @@ static int h3_init(struct qcc *qcc)
 	h3c->flags = 0;
 	h3c->id_shut_l = 0;
 	h3c->id_shut_r = 0;
+#ifdef USE_MUX_FINGERPRINT
+	h3c->fp_settings_len = 0;
+	h3c->fp_pseudo_order[0] = '\0';
+#endif
 
 	qcc->ctx = h3c;
 	h3c->prx_counters = qc_counters(qcc->conn->target, &h3_stats_module);
