@@ -6390,6 +6390,49 @@ next_frame:
 		goto fail;
 	}
 
+#ifdef USE_MUX_FINGERPRINT
+	/* Save pseudo-header order for fingerprinting (first request HEADERS
+	 * frame only). Pseudo-headers always appear before regular headers in
+	 * the HPACK list. Indexed pseudo-headers have n.name == NULL with
+	 * n.len set to an H2_PHDR_IDX_* value; literal ones have a real name
+	 * starting with ':'.
+	 */
+	if (!(h2c->flags & H2_CF_IS_BACK) && !(*flags & H2_SF_HEADERS_RCVD) &&
+	    h2c->fp_pseudo_order[0] == '\0') {
+		char *p = h2c->fp_pseudo_order;
+		int i;
+
+		for (i = 0; list[i].n.len != 0 &&
+			    p < h2c->fp_pseudo_order + sizeof(h2c->fp_pseudo_order) - 2; i++) {
+			if (!isttest(list[i].n)) {
+				/* indexed pseudo-header: n.len is H2_PHDR_IDX_* */
+				switch (list[i].n.len) {
+				case H2_PHDR_IDX_METH: *p++ = 'm'; *p++ = ','; break;
+				case H2_PHDR_IDX_AUTH: *p++ = 'a'; *p++ = ','; break;
+				case H2_PHDR_IDX_SCHM: *p++ = 's'; *p++ = ','; break;
+				case H2_PHDR_IDX_PATH: *p++ = 'p'; *p++ = ','; break;
+				default: break; /* STAT/PROT/HOST: not in fingerprint */
+				}
+			}
+			else if (list[i].n.ptr && *(list[i].n.ptr) == ':') {
+				/* literal pseudo-header name */
+				if (isteq(list[i].n, ist(":method")))      { *p++ = 'm'; *p++ = ','; }
+				else if (isteq(list[i].n, ist(":authority"))) { *p++ = 'a'; *p++ = ','; }
+				else if (isteq(list[i].n, ist(":scheme")))    { *p++ = 's'; *p++ = ','; }
+				else if (isteq(list[i].n, ist(":path")))      { *p++ = 'p'; *p++ = ','; }
+			}
+			else {
+				/* regular header — pseudo-headers are always first */
+				break;
+			}
+		}
+		/* strip trailing comma */
+		if (p > h2c->fp_pseudo_order && p[-1] == ',')
+			p--;
+		*p = '\0';
+	}
+#endif /* USE_MUX_FINGERPRINT */
+
 	/* The PACK decompressor was updated, let's update the input buffer and
 	 * the parser's state to commit these changes and allow us to later
 	 * fail solely on the stream if needed.
