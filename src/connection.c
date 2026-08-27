@@ -3025,6 +3025,74 @@ smp_fetch_fc_h2_pseudo_order(const struct arg *args, struct sample *smp, const c
 	smp->flags = SMP_F_VOL_TEST;
 	return 1;
 }
+
+/* Fetch raw H3 SETTINGS payload as binary for protocol fingerprinting.
+ * Returns the raw varint-encoded id/value pairs from the client's first
+ * H3 SETTINGS frame, in wire order. Returns empty for non-H3 connections.
+ */
+static int
+smp_fetch_fc_h3_settings_bin(const struct arg *args, struct sample *smp, const char *kw, void *private)
+{
+	struct connection *conn;
+	struct buffer *tmp;
+	int len;
+
+	conn = (kw[0] != 'b') ? objt_conn(smp->sess->origin) : smp->strm ? sc_conn(smp->strm->scb) : NULL;
+	if (!conn)
+		return 0;
+
+	if (!conn->mux || !conn->mux->ctl) {
+		if (!conn->mux)
+			smp->flags |= SMP_F_MAY_CHANGE;
+		return 0;
+	}
+
+	tmp = get_trash_chunk();
+	chunk_reset(tmp);
+	len = conn->mux->ctl(conn, MUX_CTL_GET_H3_SETTINGS_BIN, tmp);
+	if (len <= 0)
+		return 0;
+
+	smp->data.type = SMP_T_BIN;
+	smp->data.u.str.area = b_head(tmp);
+	smp->data.u.str.data = len;
+	smp->flags = SMP_F_VOL_TEST;
+	return 1;
+}
+
+/* Fetch H3 pseudo-header order as a string for fingerprinting.
+ * Returns comma-separated single-character codes (m=method, a=authority,
+ * s=scheme, p=path), e.g. "m,a,s,p". Returns empty for non-H3 connections.
+ */
+static int
+smp_fetch_fc_h3_pseudo_order(const struct arg *args, struct sample *smp, const char *kw, void *private)
+{
+	struct connection *conn;
+	struct buffer *tmp;
+	int len;
+
+	conn = (kw[0] != 'b') ? objt_conn(smp->sess->origin) : smp->strm ? sc_conn(smp->strm->scb) : NULL;
+	if (!conn)
+		return 0;
+
+	if (!conn->mux || !conn->mux->ctl) {
+		if (!conn->mux)
+			smp->flags |= SMP_F_MAY_CHANGE;
+		return 0;
+	}
+
+	tmp = get_trash_chunk();
+	chunk_reset(tmp);
+	len = conn->mux->ctl(conn, MUX_CTL_GET_H3_PSEUDO_ORDER, tmp);
+	if (len <= 0)
+		return 0;
+
+	smp->data.type = SMP_T_STR;
+	smp->data.u.str.area = b_head(tmp);
+	smp->data.u.str.data = len;
+	smp->flags = SMP_F_VOL_TEST;
+	return 1;
+}
 #endif /* USE_MUX_FINGERPRINT */
 
 /* Note: must not be declared <const> as its list will be overwritten.
@@ -3045,6 +3113,8 @@ static struct sample_fetch_kw_list sample_fetch_keywords = {ILH, {
 	{ "bc_h2_window_update", smp_fetch_fc_h2_window_update, 0, NULL, SMP_T_SINT, SMP_USE_L5SRV },
 	{ "bc_h2_priority", smp_fetch_fc_h2_priority, 0, NULL, SMP_T_STR, SMP_USE_L5SRV },
 	{ "bc_h2_pseudo_order", smp_fetch_fc_h2_pseudo_order, 0, NULL, SMP_T_STR, SMP_USE_L5SRV },
+	{ "bc_h3_settings_bin", smp_fetch_fc_h3_settings_bin, 0, NULL, SMP_T_BIN, SMP_USE_L5SRV },
+	{ "bc_h3_pseudo_order", smp_fetch_fc_h3_pseudo_order, 0, NULL, SMP_T_STR, SMP_USE_L5SRV },
 #endif
 	{ "fc_err", smp_fetch_fc_err, 0, NULL, SMP_T_SINT, SMP_USE_L4CLI },
 	{ "fc_err_name", smp_fetch_fc_err_str, 0, NULL, SMP_T_STR, SMP_USE_L4CLI },
@@ -3062,6 +3132,8 @@ static struct sample_fetch_kw_list sample_fetch_keywords = {ILH, {
 	{ "fc_h2_window_update", smp_fetch_fc_h2_window_update, 0, NULL, SMP_T_SINT, SMP_USE_L5CLI },
 	{ "fc_h2_priority", smp_fetch_fc_h2_priority, 0, NULL, SMP_T_STR, SMP_USE_L5CLI },
 	{ "fc_h2_pseudo_order", smp_fetch_fc_h2_pseudo_order, 0, NULL, SMP_T_STR, SMP_USE_L5CLI },
+	{ "fc_h3_settings_bin", smp_fetch_fc_h3_settings_bin, 0, NULL, SMP_T_BIN, SMP_USE_L5CLI },
+	{ "fc_h3_pseudo_order", smp_fetch_fc_h3_pseudo_order, 0, NULL, SMP_T_STR, SMP_USE_L5CLI },
 #endif
 	{ /* END */ },
 }};
