@@ -834,6 +834,11 @@ static int mux_pt_ctl(struct connection *conn, enum mux_ctl_type mux_ctl, void *
 		return 1;
 	case MUX_CTL_TEVTS:
 		return ctx->term_evts_log;
+	case MUX_CTL_GET_SETTINGS_BIN:
+	case MUX_CTL_GET_PRIORITY:
+	case MUX_CTL_GET_PSEUDO_ORDER:
+	case MUX_CTL_GET_CONN_WU:
+		return 0;
 	default:
 		return -1;
 	}

@@ -393,6 +393,10 @@ enum mux_ctl_type {
 	MUX_CTL_GET_NBSTRM, /* Return the current number of streams on the connection */
 	MUX_CTL_GET_MAXSTRM, /* Return the max number of streams supported by the connection */
 	MUX_CTL_TEVTS, /* Return the termination events log of the mux connection */
+	MUX_CTL_GET_SETTINGS_BIN, /* Fill output buffer with raw SETTINGS payload for fingerprinting */
+	MUX_CTL_GET_CONN_WU, /* Return connection-level WINDOW_UPDATE increment for fingerprinting */
+	MUX_CTL_GET_PRIORITY, /* Fill output buffer with PRIORITY frame data for fingerprinting */
+	MUX_CTL_GET_PSEUDO_ORDER, /* Fill output buffer with pseudo-header order string for fingerprinting */
 };
 
 /* sctl command used by mux->sctl() */
