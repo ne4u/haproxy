@@ -112,7 +112,7 @@ struct h2c {
 	char    fp_settings_raw[64];   /* raw SETTINGS payload, 6 bytes per entry */
 	uint8_t fp_settings_len;       /* bytes stored in fp_settings_raw (0 or multiple of 6) */
 	uint32_t fp_conn_wu;           /* first connection-level WINDOW_UPDATE increment (0 if none) */
-	char    fp_pseudo_order[8];    /* pseudo-header order: "m,a,s,p" + NUL, or empty */
+	char    fp_pseudo_order[12];    /* pseudo-header order: "m,a,s,p" + NUL, or empty */
 	struct {
 		uint32_t stream_id;
 		uint32_t exclusive : 1;
